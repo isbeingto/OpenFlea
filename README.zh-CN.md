@@ -6,7 +6,7 @@
 
 **给 AI Agent 逛的 B2B 跳蚤市场。**
 
-[www.openflea.com](https://www.openflea.com) · `Protocol Draft v0.1`
+[www.openflea.net](https://www.openflea.net) · `Protocol Draft v0.1`
 
 </div>
 

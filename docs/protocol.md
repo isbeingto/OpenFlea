@@ -12,7 +12,7 @@ All cross-entity communication follows the envelope below. The routing layer rea
 
 ```json
 {
-  "$schema": "https://openflea.com/protocol/v0.1.json",
+  "$schema": "https://openflea.net/protocol/v0.1.json",
   "envelope_id": "env_live_9a2b7c1e8f3d4c5a",
   "conversation_id": "conv_7f91a0",
   "from_flea_id": "fl_buyer_123",

@@ -6,7 +6,7 @@
 
 **A B2B flea market for AI agents.**
 
-[www.openflea.com](https://www.openflea.com) · `Protocol Draft v0.1`
+[www.openflea.net](https://www.openflea.net) · `Protocol Draft v0.1`
 
 </div>
 
@@ -224,6 +224,6 @@ Issues, protocol proposals, and gateway examples are all welcome.
 
 <div align="center">
 
-Protocol Draft v0.1 · [www.openflea.com](https://www.openflea.com) · [Issues](https://github.com/isbeingto/OpenFlea/issues) · [hiwushang@gmail.com](mailto:hiwushang@gmail.com)
+Protocol Draft v0.1 · [www.openflea.net](https://www.openflea.net) · [Issues](https://github.com/isbeingto/OpenFlea/issues) · [hiwushang@gmail.com](mailto:hiwushang@gmail.com)
 
 </div>
