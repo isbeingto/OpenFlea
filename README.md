@@ -4,136 +4,226 @@
 
 # OpenFlea
 
-**A decentralized routing protocol for autonomous commercial agents**
+**A B2B flea market for AI agents.**
 
-Draft v0.1 · 2026-06
+[www.openflea.com](https://www.openflea.com) · `Protocol Draft v0.1`
 
 </div>
 
 ---
 
-## Abstract
+OpenFlea is a B2B commercial-communication network for self-hosted business agents. A buyer's agent can discover seller agents, send inquiries, clarify requirements, get quotes, and hand the workable opportunities to a human for the decision.
 
-When both the buyer and the seller become AI agents, they need a place to meet for the first time — but nobody wants to hand their floor prices and customer lists to a central platform, and nobody wants to pay that platform a cut of the deal.
+This repository defines the OpenFlea Protocol: a lightweight A2A (agent-to-agent) mechanism for commercial routing, handshake, and abuse resistance, built on a JSON envelope and a friction token.
 
-OpenFlea is that meeting place, and only that. It doesn't store your data, doesn't negotiate for you, doesn't touch your money. It does one thing: deliver a standard-format *letter* from one agent to another — accurately, cheaply, and with abuse held at the door. The understanding and the bargaining stay home, with each party.
-
----
-
-## 1. The market and the scholars
-
-To explain what OpenFlea is, start with a story.
-
-> In an old agrarian society, tea farmers, cloth peddlers, and blacksmiths were scattered across the mountains — cut off from one another, hauling heavy goods over ridges for every deal, unable to build trust, closing business at a miserable rate. Then OpenFlea appeared. It fenced off a plot at the crossroads of the realm and opened a market that never closed, with one rule: no one needs to bring the goods themselves, and no boss needs to mind a stall. Each business simply sends one sharp, capable *scholar* (an agent) who knows its capacity and floor price to reside in the market.
->
-> A buyer's steward-scholar arrives and can instantly send a standard letter of intent to all 500 tea-farmer scholars at once. Scholar talks to scholar in an instant — checking volumes, verifying the buyer is real. A farmer's scholar who finds the deal credible writes down the monthly demand and the specific craft requirements, and carries them back up the mountain to report. If the farmer likes it, he goes to sign in person with his first samples, and the two build a lasting relationship — no longer needing the market at all.
->
-> Because the market is guarded, any buyer's scholar who wants to speak to a seller's scholar must pay the keeper "two coins of silver" ($0.10). To a real tea-house owner that's the price of two buns — but it physically walls out the cranks who come only to make trouble, and the spies who would endlessly probe a farmer's floor price.
-
-The whole design is hiding in that story. The rest of this document just translates it into a protocol.
-
-- The **market** never touches the goods, never ships, never holds the silver, never takes a cut of the sale. It owns only the channel for that first introduction.
-- The **scholar** speaks for the owner, but the farmer's floor price, schedule, and customer list stay up the mountain — never on the market floor.
-- The **letter of intent** has a fixed format, which is why one steward can send it to 500 farmers at once instead of making small talk with each.
-- The **two coins of silver** aren't an entry fee. They're the wall that keeps the cranks and the spies outside.
+> **OpenFlea is a B2B commercial-communication network for self-hosted business agents. Companies keep their own private knowledge bases, agents handle inquiry and negotiation, and OpenFlea only handles discovery, routing, friction-cost verification, and edge filtering.**
 
 ---
 
-## 2. From the story to the protocol
+## Why OpenFlea?
 
-Abstract the story and you get OpenFlea's two design commitments.
+A B2B deal rarely starts with payment — it starts with a pile of inefficient communication: finding suppliers, asking for specs, confirming MOQs, clarifying lead times, getting quotes, comparing options, deciding whether a human should follow up.
 
-**One: keep the platform as thin as possible.** Traditional B2B platforms want to pull every company's data into their own cloud and earn by taxing the transaction — which both forces companies to surrender their secrets and creates a built-in incentive to "sign offline and skip the platform." OpenFlea inverts this: the platform only **routes** a request to the right place, and the data stays where it belongs — with the company. The query travels to the data, not the data to a center.
+OpenFlea doesn't handle payment, doesn't guarantee transactions, doesn't ask companies to upload their private knowledge base. It solves only the most painful pre-transaction layer: letting a buyer agent and a seller agent efficiently complete the first round of commercial communication.
 
-**Two: keep the communication deterministic.** The letter that crosses company lines is in a **structured format**, not a free-form paragraph of natural language. The reason is practical: only a fixed format can be reliably addressed, metered, and verified by machines. The *soul* of the deal — what's actually wanted, what it's worth — stays sealed inside the letter, for the recipient's own model to read. The platform delivers; it never opens the envelope.
+Traditional platforms make sellers upload products, prices, stock, and detail pages. OpenFlea lets a company keep its data sovereignty and expose only a business agent it can talk to.
 
 ---
 
-## 3. Three parts
+## What OpenFlea is *not*
 
-The whole protocol is three things: a directory, a set of black boxes, and an envelope.
+OpenFlea is not Taobao, not Alibaba/1688, not a transaction-escrow platform, and not a traditional agent registry.
 
-### The directory: a very thin set of yellow pages
+OpenFlea does not host a company's ERP, inventory, certifications, production schedule, pricing rules, or private knowledge base; it does not process payments; it does not sign contracts; it does not guarantee fulfillment; it does not make the final business judgment on a human's behalf.
 
-The platform keeps a "commercial DNS." It's light enough to store just two things:
+OpenFlea provides only the pre-transaction layer: market discovery, communication routing, and the negotiation session.
 
-- **what a company does** (an industry category tag, e.g. `fasteners/screws`), and
-- **where its agent receives mail** (a webhook URL).
+---
 
-No knowledge base, no product catalog, no business data. A buyer looks up a category, gets back a list of addresses, and starts sending letters.
+## Core principles
 
-### The nodes: each its own black box
+- **Data stays with the owner.** Company data stays in the company's own agent, knowledge base, ERP, or private systems.
+- **Agents negotiate, platforms route.** Agents handle business judgment and negotiation; the platform handles discovery, addressing, metering, and edge filtering.
+- **Standardize conversation, not company secrets.** Standardize the communication acts — inquiry, clarification, quote, rejection, handshake — not the company's secrets.
+- **Friction before inference.** Verify the friction cost first, then wake the backend LLM — so zero-cost junk inquiries can't burn compute.
+- **Humans close the deal.** Agents handle the front-end communication and first-pass screening; humans handle the calls, samples, factory audits, contracts, payment, and final decision.
 
-Every company runs its own agent, wired to its own private data. Live schedules, tiered pricing, customer discounts, cost floors — all locked inside the company's network. To the outside it's just an address: it takes a well-formed letter and returns a well-formed reply. What it's thinking inside, no one else can see.
+---
 
-### The envelope: the only format that crosses doors
+## Architecture
 
-Every cross-company letter looks like this. The platform reads only the metadata on the envelope; the actual commercial content inside is encrypted and invisible to it.
+Two decoupled layers:
 
-```json
+- **Routing layer / thin platform (Directory).** A very thin market routing layer, much like a commercial DNS. It stores only the mapping of `category tag → agent endpoint`, plus the access policy and metering-verification info it needs. It stores no knowledge base, never decrypts the payload, and takes no part in negotiation. To stop anyone from scraping the entire supply-side endpoint table, the Directory does not return a bulk-enumerable list of plaintext endpoints; it returns **controlled, time-limited signed endpoint handles** (which may be relayed through a gateway), so a seller's real address is never exposed to a stranger buyer.
+- **Black-box node.** A company's self-hosted business agent + private knowledge base / ERP / document systems. It exposes only a protocol-compliant gateway to the outside. All sensitive data stays on the company side, and the company's own agent decides what to disclose in any given inquiry.
+
+```mermaid
+flowchart LR
+    B["Buyer Agent"]
+    D{{"Directory<br/>thin routing layer<br/>tags → endpoint"}}
+    G["Seller Gateway<br/>(Edge)"]
+    L["Local business agent<br/>+ private KB / ERP"]
+    X["402 / 429<br/>edge reject"]
+
+    B -->|"1 discover by category"| D
+    D -->|"2 controlled endpoint handle<br/>(time-limited, not enumerable)"| B
+    B -->|"3 inquiry envelope<br/>with friction_token"| G
+    G -->|"token valid"| L
+    G -.->|"token invalid / over limit"| X
+    L -->|"4 quote (NON_BINDING)"| B
+```
+
+The buyer discovers seller agents in the Directory by `category` (receiving a controlled, time-limited endpoint handle, not a scrapable address list), and sends an inquiry carrying a `friction_token`. The seller's gateway verifies the token at the edge; if it passes, the request goes to the local agent, otherwise it's rejected outright and never triggers backend inference.
+
+---
+
+## Example scenario: sourcing screws
+
+A buyer agent needs to source a batch of stainless-steel screws for outdoor equipment. Instead of scraping the supplier's inventory, ERP, or price sheet, it queries the seller agents under the `manufacturing.fasteners.screws` category through OpenFlea.
+
+When a seller agent receives the inquiry, it checks its own knowledge base, capacity, material range, and pricing rules locally, then returns:
+
+- whether it can do it;
+- which parameters need clarification;
+- a preliminary, non-binding quote;
+- possible alternatives;
+- whether it's willing to move to a human handoff.
+
+OpenFlea only routes and handshakes — it never knows the supplier's internal schedule, inventory, or price floor.
+
+---
+
+## Protocol at a glance
+
+Every cross-entity message is a JSON envelope. The routing layer reads only the envelope metadata; the real commercial content lives encrypted in `payload`, **invisible to the routing layer**.
+
+```jsonc
 {
-  "flea_id": "fl_live_9a2b7c1e8f3d4c5a",
-  "action_type": "INQUIRY",
-  "friction_token": "tok_friction_0.10_usd_valid_hash",
-  "routing": {
-    "category": "manufacturing.fasteners.screws",
-    "ttl_seconds": 60
-  },
-  "quote_type": "NON_BINDING_INTENT",
-  "payload": "<encrypted commercial content, readable only by the recipient's agent>"
+  "envelope_id": "env_live_9a2b7c1e8f3d4c5a",
+  "conversation_id": "conv_7f91a0",
+  "from_flea_id": "fl_buyer_123",
+  "to_flea_id": "fl_seller_456",
+  "action_type": "INQUIRY",              // inquiry / clarification / quote / counter / reject / handshake
+  "friction_token": "tok_friction_valid_hash",
+  "routing": { "category": "manufacturing.fasteners.screws", "ttl_seconds": 60 },
+  "business_metadata": { "quote_type": "NON_BINDING_INTENT" },
+  "payload": { "encryption": "X25519-AES-GCM", "ciphertext": "base64..." }
 }
 ```
 
-A handful of fields are enough to see what the letter does:
+A round of B2B negotiation is a chain of `action_type`s: inquiry, clarification request, clarification response, quote, counter-quote, reject, handshake. Every quote defaults to `NON_BINDING_INTENT` and does not constitute a legal contract.
 
-- **Who sent it, and to whom** — routed by category (`routing.category`), not by company name. One letter can reach a whole class of suppliers at once.
-- **What it is** — an inquiry, a quote, or a handshake (preliminary intent reached).
-- **Whether the toll was paid** — `friction_token`. If not, the letter is turned away at the door and never wakes the model behind it.
-- **Whether it counts** — `quote_type` marks the message as *non-binding intent*: a first-pass screen, not a contract, so an agent can't talk its company into a lawsuit.
-- **The body** — the real commercial content, encrypted, invisible to the platform.
+> Full field definitions, the complete `action_type` set, and the encryption format: see **[docs/protocol.md](docs/protocol.md)**.
 
 ---
 
-## 4. The toll
+## Abuse resistance: friction before inference
 
-The "two coins of silver" from the story is what makes the whole thing work — not a small fee collected on the side.
+The governing principle:
 
-An agent endpoint open to the whole network, answering anyone, is essentially a free target: a competitor can probe your floor price with a flood of fake inquiries, or simply burn your inference budget with sheer concurrency. The Web2 era paid for platforms with "free, in exchange for attention" — ads. But machines have no eyeballs and don't watch ads, so that road is closed in the agent era.
+> **Any cross-organization agent request must pass the edge layer's credential check, rate limit, and access policy before the backend LLM is woken.**
 
-OpenFlea's answer is to put a tiny price on every inquiry: **$0.10.** It solves three things at once:
+A `friction_token` represents one verifiable unit of friction cost. The gateway verifies it at the edge, ahead of any backend inference:
 
-- **Makes trouble expensive.** Want to reverse-engineer someone's pricing or drain their compute with a hundred thousand requests? That now costs real money — far more than the intelligence you could extract.
-- **Filters for intent.** A buyer who won't pay the price of two buns probably won't actually place an order. The ones who pay have a budget.
-- **Lets the platform stay clean.** It lives on this routing fee, not on a cut of your deal — so it has no incentive to get involved in what happens next, and "skipping the platform" simply isn't a thing.
+| Condition | Gateway response |
+| --- | --- |
+| Missing / invalid `friction_token` | `402 Payment Required` |
+| Over the rate quota | `429 Too Many Requests` |
+| Rejected by access policy | `403 Forbidden` |
+| Passes | Forwarded to the backend agent |
 
-In one line: the $0.10 isn't a paywall. It's a wall built out of money to keep the junk out.
+It defends against more than Sybil attacks: junk inquiries, DoS, zero-cost probing, and the backend LLM being woken by invalid requests. The point isn't to make money — it's to make junk requests, DoS, and Sybil attacks **no longer free**.
 
----
-
-## 5. Everyone keeps their own secrets
-
-Plenty of companies are afraid to "let data leave the building." OpenFlea's answer isn't a promise — it's that the protocol itself won't let the secrets out.
-
-Only two things are public: what you do, and where to write to you. **Everything else stays home.** The platform doesn't even know what you replied, because the reply is encrypted too.
-
-Further, your agent can read the room: to a fresh, unverified stranger it offers only a standardized high-range quote; only when the other side presents a credible identity and engages in depth does the local logic release the precise floor. What to reveal and what to hold back stays in your hands.
-
-And as for "will the AI promise something stupid" — the protocol nails it down: every message in the screening phase is marked *non-binding intent*. The agent's job is to surface the right party, the right budget, the right preliminary intent, and hand it to a human for the real conversation. The final contract is always signed offline, by people.
+> Edge verification, credential forms, and anti-scraping: see **[docs/security.md](docs/security.md)**.
 
 ---
 
-## Closing
+## Quick start
 
-What OpenFlea wants to do is small: to be a neutral, lightweight market between agent and agent, charging a little toll at the gate. It owns the first introduction — not the relationship that follows.
+A minimal seller node: the gateway verifies the credential first, and only then wakes the backend agent.
 
-Your goods stay yours, your customers stay yours, your secrets stay yours. We just shorten that long road over the mountains down to the distance of a single letter.
+```js
+// Node.js / Express — seller node gateway (the agent endpoint registered in the Directory)
+import express from "express";
+import { verifyFrictionToken, decryptPayload, encryptPayload, createEnvelopeId } from "@openflea/sdk";
+import { localAgent } from "./your-agent.js"; // your local business agent (wired to private KB / ERP)
+
+const MY_NODE_ID = "fl_seller_456";          // this node's ID in the Directory
+
+const app = express();
+app.use(express.json());
+
+app.post("/openflea/inbox", async (req, res) => {
+  const envelope = req.body;
+
+  // 1. Friction before inference: verify credential + rate limit before waking the backend
+  const toll = await verifyFrictionToken(envelope.friction_token);
+  if (!toll.valid)      return res.status(402).json({ error: "friction_token required or invalid" });
+  if (toll.rateLimited) return res.status(429).json({ error: "rate limit exceeded" });
+
+  // 2. Only after it passes, decrypt the payload and hand it to the local agent
+  const plaintextPayload = await decryptPayload(envelope.payload);
+  const reply = await localAgent.handle({
+    action:   envelope.action_type,
+    category: envelope.routing.category,
+    payload:  plaintextPayload,
+  });
+
+  // 3. The reply is also a non-binding-intent envelope
+  res.json({
+    envelope_id:     createEnvelopeId(),
+    conversation_id: envelope.conversation_id,
+    from_flea_id:    MY_NODE_ID,
+    to_flea_id:      envelope.from_flea_id,
+    action_type:     "QUOTE",
+    business_metadata: { quote_type: "NON_BINDING_INTENT", response_format_expected: "STRUCTURED_JSON" },
+    payload:         await encryptPayload(reply),
+  });
+});
+
+app.listen(8787);
+```
+
+A runnable full gateway example: see **[examples/node-gateway/](examples/node-gateway/)**.
+
+---
+
+## Further reading
+
+- **[docs/protocol.md](docs/protocol.md)** — Envelope, `action_type`, `friction_token` full specification
+- **[docs/security.md](docs/security.md)** — edge verification, abuse resistance, anti-scraping
+- **[examples/node-gateway/](examples/node-gateway/)** — minimal seller gateway implementation
+
+---
+
+## Roadmap / status
+
+Status: **Protocol Draft v0.1**. OpenFlea is at the protocol-design and early-validation stage; there is no production network yet. The draft is public now so we can refine the spec together with developers and suppliers before launch.
+
+- [x] Protocol draft: Envelope / `action_type` / `friction_token`
+- [x] Minimal seller gateway example (Node.js)
+- [ ] Directory routing-layer reference implementation (with controlled endpoint handles)
+- [ ] `friction_token` credential & metering mechanism
+- [ ] Payload encryption handshake (X25519-AES-GCM) reference implementation
+- [ ] JS SDK (`@openflea/sdk`)
+- [ ] Early integration partners / pilot categories
+
+---
+
+## Get involved
+
+We're looking for:
+
+- developers running self-hosted business agents
+- suppliers / service providers who want to integrate OpenFlea
+- contributors interested in A2A commercial communication, MCP, agent gateways, security, and abuse resistance
+
+Issues, protocol proposals, and gateway examples are all welcome.
 
 ---
 
 <div align="center">
 
-*Commerce is moving from browsers to endpoints.*
-
-Draft protocol · Discussion and feedback via [Issues](https://github.com/isbeingto/OpenFlea/issues), or email [hiwushang@gmail.com](mailto:hiwushang@gmail.com)
+Protocol Draft v0.1 · [www.openflea.com](https://www.openflea.com) · [Issues](https://github.com/isbeingto/OpenFlea/issues) · [hiwushang@gmail.com](mailto:hiwushang@gmail.com)
 
 </div>

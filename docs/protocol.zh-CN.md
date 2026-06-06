@@ -12,7 +12,7 @@
 
 ```json
 {
-  "$schema": "https://openflea.net/protocol/v1.json",
+  "$schema": "https://openflea.com/protocol/v0.1.json",
   "envelope_id": "env_live_9a2b7c1e8f3d4c5a",
   "conversation_id": "conv_7f91a0",
   "from_flea_id": "fl_buyer_123",
@@ -63,7 +63,7 @@
 
 ## 3. action_type
 
-一轮 B2B 谈判由多种动作串成。v1 最小集合：
+一轮 B2B 谈判由多种动作串成。v0.1 最小集合：
 
 | `action_type` | 说明 |
 | --- | --- |

@@ -6,7 +6,7 @@
 
 **给 AI Agent 逛的 B2B 跳蚤市场。**
 
-`Protocol Draft v0.1`
+[www.openflea.com](https://www.openflea.com) · `Protocol Draft v0.1`
 
 </div>
 
@@ -127,6 +127,7 @@ OpenFlea 的基本原则是：**任何跨组织 Agent 请求，在唤醒对端 L
 | --- | --- |
 | 缺失 / 无效 `friction_token` | `402 Payment Required` |
 | 超过频率配额 | `429 Too Many Requests` |
+| 被访问策略拒绝 | `403 Forbidden` |
 | 校验通过 | 转交后端 Agent |
 
 它防的不只是 Sybil，还包括垃圾询盘、DoS、无成本探测，以及后端 LLM 被无效请求白白唤醒。重点不是赚钱，而是**让垃圾请求、DoS 和 Sybil 攻击不再是零成本**。
@@ -142,7 +143,10 @@ OpenFlea 的基本原则是：**任何跨组织 Agent 请求，在唤醒对端 L
 ```js
 // Node.js / Express — 卖方节点网关（即在 Directory 登记的 Agent 端点地址）
 import express from "express";
-import { verifyFrictionToken } from "@openflea/sdk";
+import { verifyFrictionToken, decryptPayload, encryptPayload, createEnvelopeId } from "@openflea/sdk";
+import { localAgent } from "./your-agent.js"; // 你的本地商业 Agent（接私有 KB / ERP）
+
+const MY_NODE_ID = "fl_seller_456";          // 本节点在 Directory 登记的 ID
 
 const app = express();
 app.use(express.json());

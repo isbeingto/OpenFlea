@@ -41,3 +41,5 @@ curl -i -s localhost:8787/openflea/inbox \
 - [`stubs.js`](stubs.js) —— 占位的凭证校验 / 加解密 / 本地 Agent，生产环境替换为 `@openflea/sdk` 与你自己的实现
 
 完整协议定义见 [docs/protocol.zh-CN.md](../../docs/protocol.zh-CN.md)，安全机制见 [docs/security.zh-CN.md](../../docs/security.zh-CN.md)。
+
+> English version: [README.md](README.md)
