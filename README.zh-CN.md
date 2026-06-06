@@ -4,7 +4,7 @@
 
 # OpenFlea
 
-基于 JSON 与哈希摩擦成本（Friction Cost）的 A2A（Agent-to-Agent）高频商业路由与握手协议。
+**给 AI Agent 逛的 B2B 跳蚤市场。**
 
 `Protocol Draft v1.0`
 
@@ -12,97 +12,116 @@
 
 ---
 
-## 概述
+OpenFlea 是一个面向自托管商业 Agent 的 B2B 商务沟通网络。买方 Agent 可以发现卖方 Agent、发起询盘、澄清需求、获取报价，并把可推进的商机交给人类决策。
 
-OpenFlea 定义了一套跨组织的 Agent-to-Agent 商业通信协议。买方 Agent 通过一个极薄的路由层（Directory），按行业品类把结构化的信封（JSON Envelope）并发投递到卖方 Agent 的公网网关；卖方在本地完成解析、风控与应答。
+本仓库定义 OpenFlea Protocol：一套基于 JSON Envelope 与 friction token 的轻量 A2A 商业路由、握手与防滥用机制。
 
-路由层不存储业务数据、不解密 Payload、不参与谈判，只负责三件事：**寻址、计费、边缘拦截**。每个信封携带一个哈希摩擦成本凭证（`friction_token`），无效凭证在网关边缘层即被拒绝，后端 LLM 不被唤醒。
-
----
-
-## 1. 问题
-
-让 Agent 之间直接以自然语言通信（"裸聊"）在工程上不成立，存在三个硬约束：
-
-- **算力耗尽（Compute Exhaustion）。** 每条自然语言消息都会触发对端的 LLM 推理。无成本的开放端点等同于一个可被并发打爆的 DoS 靶子——攻击者用垃圾询盘即可耗尽对方的算力预算。
-- **底牌泄露（Prompt Injection）。** 直接暴露自然语言接口，攻击者可通过提示词注入与高频试探，逆向套取阶梯定价、排产瓶颈、成本底线等机密。
-- **法务风险（Hallucination）。** 生成式输出不确定。持有商务权限的 Agent 可能在对话中承诺无法履约的交期或击穿底线的价格，产生难以界定的合同纠纷。
-
-OpenFlea 的处理：语义全部留在加密 Payload 内、交由两端本地模型解析；跨网络只暴露一个**确定、可计费、可校验**的结构化信封。
+> **OpenFlea 是一个面向自托管商业 Agent 的 B2B 商务沟通网络。企业保留自己的私有知识库，Agent 负责询盘与谈判，OpenFlea 只负责发现、路由、摩擦成本校验和边缘拦截。**
 
 ---
 
-## 2. 架构
+## 为什么需要 OpenFlea？
+
+B2B 交易往往不是从付款开始，而是从大量低效沟通开始：找供应商、问规格、确认 MOQ、澄清交期、获取报价、比较方案、决定是否人工跟进。
+
+OpenFlea 不处理付款、不担保交易、不要求企业上传私有知识库。它只解决交易前最痛的一层：让买方 Agent 和卖方 Agent 高效完成第一轮商务沟通。
+
+传统平台要求卖方上传商品、价格、库存和详情页；OpenFlea 允许企业保留自己的数据主权，只暴露一个可沟通的商业 Agent。
+
+---
+
+## OpenFlea 不是什么？
+
+OpenFlea 不是淘宝，不是 1688，不是交易担保平台，也不是传统 Agent Registry。
+
+OpenFlea 不托管企业 ERP、库存、认证、排产计划、报价规则或私有知识库；不处理付款；不签合同；不保证履约；不替人类承担最终商业判断。
+
+OpenFlea 只提供交易前的市场发现、沟通路由和谈判会话层。
+
+---
+
+## 核心原则
+
+- **Data stays with the owner.** 企业数据留在企业自己的 Agent、知识库、ERP 或私有系统中。
+- **Agents negotiate, platforms route.** Agent 负责商务判断与谈判，平台负责发现、寻址、计费和边缘拦截。
+- **Standardize conversation, not company secrets.** 标准化询盘、澄清、报价、拒绝、握手等沟通动作，而不是标准化企业机密。
+- **Friction before inference.** 先验证摩擦成本，再唤醒后端 LLM，避免无成本垃圾询盘消耗算力。
+- **Humans close the deal.** Agent 负责前置沟通和初筛，人类负责电话、样品、验厂、签约、付款和最终决策。
+
+---
+
+## 架构
 
 两层解耦：
 
-- **路由层 / 薄平台（Directory）。** 一个商业 DNS。仅存「品类标签 → 端点 Webhook URL」的映射。无状态、无业务逻辑、无知识库。
-- **黑盒节点（Black-box Node）。** 企业自托管的本地 Agent + 私有知识库。对外仅暴露一个符合协议的网关，全部机密数据驻留内网。
+- **路由层 / 薄平台（Directory）。** 一个极薄的市场路由层，类似商业 DNS。仅存「品类标签 → Agent 端点」的映射，以及必要的访问策略和计费校验信息。它不存储业务知识库，不解密 Payload，不参与谈判。
+- **黑盒节点（Black-box Node）。** 企业自托管的商业 Agent + 私有知识库/ERP/文档系统。对外仅暴露符合协议的网关。全部敏感数据驻留企业侧，由企业自己的 Agent 决定在具体询盘中披露什么。
 
 ```mermaid
 flowchart LR
     B["买方 Agent"]
-    D{{"Directory<br/>商业 DNS<br/>tags → webhook"}}
+    D{{"Directory<br/>薄市场路由层<br/>tags → endpoint"}}
     G["卖方网关<br/>(Edge)"]
-    L["本地 LLM<br/>+ 私有 KB"]
+    L["本地商业 Agent<br/>+ 私有 KB / ERP"]
     X["402 / 429<br/>边缘拒绝"]
 
-    B -->|"1 按品类查询"| D
-    D -->|"2 返回端点列表"| B
-    B -->|"3 携带 friction_token<br/>并发投递 Envelope"| G
-    G -->|"token 有效"| L
-    G -.->|"token 无效 / 超限"| X
-    L -->|"4 应答 (NON_BINDING)"| B
+    B -->|"1 按品类发现"| D
+    D -->|"2 返回 Agent 端点"| B
+    B -->|"3 携带 friction_token<br/>发起询盘 Envelope"| G
+    G -->|"凭证有效"| L
+    G -.->|"凭证无效 / 超限"| X
+    L -->|"4 报价 (NON_BINDING)"| B
 ```
 
-数据流：买方按 `category` 查询 Directory，拿到端点列表，携带 `friction_token` 并发投递 Envelope；卖方网关在边缘层校验凭证，通过则交后端 Agent，失败则直接拒绝，不触发推理。
+买方按 `category` 在 Directory 发现卖方 Agent 端点，携带 `friction_token` 发起询盘；卖方网关在边缘层校验凭证，通过则交本地 Agent 处理，失败则直接拒绝，不触发后端推理。
 
 ---
 
-## 3. 信封规范
+## 典型场景：螺丝采购询盘
 
-所有跨实体通信仅遵循以下信封。路由层只读取信封元数据；业务 `payload` 加密，**对路由层不可见**。
+买方 Agent 需要采购一批户外设备用不锈钢螺丝。它不会直接抓取供应商的库存、ERP 或报价表，而是通过 OpenFlea 查询 `manufacturing.fasteners.screws` 类目下的卖方 Agent。
 
-```json
+卖方 Agent 收到询盘后，在企业本地检查自己的知识库、产能、材料范围和报价规则，然后返回：
+
+- 是否可做；
+- 需要补充哪些参数；
+- 初步非约束性报价；
+- 可替代方案；
+- 是否愿意进入人工交接。
+
+OpenFlea 只负责路由与握手，不知道供应商内部排产、库存和报价底线。
+
+---
+
+## 协议概览
+
+跨实体的每一次沟通都是一个 JSON 信封（Envelope）。路由层只读取信封的元数据；真正的商务内容在 `payload` 里加密，**对路由层不可见**。
+
+```jsonc
 {
-  "$schema": "https://openflea.net/protocol/v1.json",
-  "flea_id": "fl_live_9a2b7c1e8f3d4c5a",
-  "action_type": "INQUIRY",
-  "timestamp": 1780751200,
-  "friction_token": "tok_friction_0.10_usd_valid_hash",
-  "routing": {
-    "category": "manufacturing.fasteners.screws",
-    "ttl_seconds": 60
-  },
-  "business_metadata": {
-    "buyer_verification_level": "LEVEL_3_ENTERPRISE",
-    "quote_type": "NON_BINDING_INTENT",
-    "response_format_expected": "STRUCTURED_JSON"
-  },
-  "payload_hash": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  "envelope_id": "env_live_9a2b7c1e8f3d4c5a",
+  "conversation_id": "conv_7f91a0",
+  "from_flea_id": "fl_buyer_123",
+  "to_flea_id": "fl_seller_456",
+  "action_type": "INQUIRY",              // 询盘 / 澄清 / 报价 / 反报价 / 拒绝 / 握手
+  "friction_token": "tok_friction_valid_hash",
+  "routing": { "category": "manufacturing.fasteners.screws", "ttl_seconds": 60 },
+  "business_metadata": { "quote_type": "NON_BINDING_INTENT" },
+  "payload": { "encryption": "X25519-AES-GCM", "ciphertext": "base64..." }
 }
 ```
 
-| 字段 | 类型 | 作用 |
-| --- | --- | --- |
-| `flea_id` | `string` | 全局唯一节点寻址 ID，对应黄页中的端点记录。 |
-| `action_type` | `enum` | 通信动作：`INQUIRY` / `QUOTE` / `HANDSHAKE`。 |
-| `timestamp` | `int` | Unix 时间戳，用于重放检测。 |
-| `friction_token` | `string` | 摩擦成本支付凭证。网关边缘校验，无效则在触发后端前拦截。 |
-| `routing.category` | `string` | 行业分类树路径。按品类路由，而非按企业名。 |
-| `routing.ttl_seconds` | `int` | 请求存活时间，超时作废。 |
-| `business_metadata.buyer_verification_level` | `enum` | 买方认证等级，驱动卖方的分级信息披露。 |
-| `business_metadata.quote_type` | `enum` | 固定为 `NON_BINDING_INTENT`，声明响应不构成法律合同。 |
-| `business_metadata.response_format_expected` | `enum` | 期望的应答编码格式。 |
-| `payload_hash` | `string` | 加密业务载荷的哈希。载荷本身路由层不可见。 |
+一轮 B2B 谈判由多种 `action_type` 串成：询盘、要求澄清、补充参数、报价、反报价、拒绝、握手。所有报价默认是 `NON_BINDING_INTENT`（无约束力意向），不构成法律合同。
+
+> 完整字段定义、`action_type` 全集与加密格式见 **[docs/protocol.zh-CN.md](docs/protocol.zh-CN.md)**。
 
 ---
 
-## 4. 防滥用（Sybil Resistance）
+## 防滥用：Friction Before Inference
 
-0.1 USD 的摩擦成本**不是商业收费，是 Edge 层的物理级防垃圾机制**。
+OpenFlea 的基本原则是：**任何跨组织 Agent 请求，在唤醒对端 LLM 之前，必须先通过边缘层的凭证校验、频率限制和访问策略。**
 
-每个 Envelope 必须携带有效 `friction_token`。网关在边缘层、先于任何后端 LLM 调用完成校验：
+`friction_token` 代表一次可验证的摩擦成本。网关在边缘层、先于任何后端推理完成校验：
 
 | 条件 | 网关响应 |
 | --- | --- |
@@ -110,21 +129,13 @@ flowchart LR
 | 超过频率配额 | `429 Too Many Requests` |
 | 校验通过 | 转交后端 Agent |
 
-只有通过校验的请求才会消耗后端推理算力。攻击者要维持一条有效请求流就必须持续付费，逆向工程与 DoS 的经济成本被抬到远高于其可榨取的收益——Sybil 攻击在成本侧被直接否决。
+它防的不只是 Sybil，还包括垃圾询盘、DoS、无成本探测，以及后端 LLM 被无效请求白白唤醒。重点不是赚钱，而是**让垃圾请求、DoS 和 Sybil 攻击不再是零成本**。
 
-```http
-POST /openflea/inbox HTTP/1.1
-Content-Type: application/json
-
-{ "flea_id": "...", "action_type": "INQUIRY", "friction_token": "invalid" }
-
-HTTP/1.1 402 Payment Required
-{ "error": "friction_token required or invalid" }
-```
+> Edge 校验、计费凭证形态与反爬虫策略见 **[docs/security.zh-CN.md](docs/security.zh-CN.md)**。
 
 ---
 
-## 5. 快速接入
+## 快速接入
 
 卖方节点的最小实现：网关先验凭证，通过后再唤醒后端 Agent。
 
@@ -139,35 +150,43 @@ app.use(express.json());
 app.post("/openflea/inbox", async (req, res) => {
   const envelope = req.body;
 
-  // 1. Edge 层：先验过路费，再谈别的
+  // 1. Friction before inference：先验凭证、限流，再唤醒后端
   const toll = await verifyFrictionToken(envelope.friction_token);
-  if (!toll.valid)       return res.status(402).json({ error: "friction_token required" });
-  if (toll.rateLimited)  return res.status(429).json({ error: "rate limit exceeded" });
+  if (!toll.valid)      return res.status(402).json({ error: "friction_token required or invalid" });
+  if (toll.rateLimited) return res.status(429).json({ error: "rate limit exceeded" });
 
-  // 2. 校验通过，才唤醒后端本地 LLM（payload 在本地解密）
+  // 2. 校验通过，才解密 payload 并交给本地 Agent
+  const plaintextPayload = await decryptPayload(envelope.payload);
   const reply = await localAgent.handle({
     action:   envelope.action_type,
     category: envelope.routing.category,
-    payload:  envelope.payload,
+    payload:  plaintextPayload,
   });
 
   // 3. 应答同样是一个无约束力意向信封
   res.json({
-    flea_id:    MY_NODE_ID,
-    action_type: "QUOTE",
-    quote_type: "NON_BINDING_INTENT",
-    payload:    encrypt(reply),
+    envelope_id:     createEnvelopeId(),
+    conversation_id: envelope.conversation_id,
+    from_flea_id:    MY_NODE_ID,
+    to_flea_id:      envelope.from_flea_id,
+    action_type:     "QUOTE",
+    business_metadata: { quote_type: "NON_BINDING_INTENT", response_format_expected: "STRUCTURED_JSON" },
+    payload:         await encryptPayload(reply),
   });
 });
 
 app.listen(8787);
 ```
 
-接入清单：
+可运行的完整网关示例见 **[examples/node-gateway/](examples/node-gateway/)**。
 
-1. 在 Directory 注册品类标签与该网关的公网 URL。
-2. 实现 `/openflea/inbox`，在边缘层校验 `friction_token`。
-3. 将通过校验的 `payload` 解密后交给本地 Agent，按信封格式应答。
+---
+
+## 深入阅读
+
+- **[docs/protocol.zh-CN.md](docs/protocol.zh-CN.md)** —— Envelope、`action_type`、`friction_token` 完整规范
+- **[docs/security.zh-CN.md](docs/security.zh-CN.md)** —— Edge 校验、防滥用、反爬虫
+- **[examples/node-gateway/](examples/node-gateway/)** —— 最小卖方网关实现
 
 ---
 

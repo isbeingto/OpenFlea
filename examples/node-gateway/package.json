@@ -1,0 +1,13 @@
+{
+  "name": "openflea-node-gateway-example",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Minimal OpenFlea seller node gateway example",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
