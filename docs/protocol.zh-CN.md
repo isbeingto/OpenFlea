@@ -1,6 +1,6 @@
 # OpenFlea Protocol —— 信封规范
 
-`Protocol Draft v1.0` · [← 返回 README](../README.zh-CN.md)
+`Protocol Draft v0.1` · [← 返回 README](../README.zh-CN.md)
 
 本文件定义 OpenFlea 跨实体通信的标准信封（Envelope）、动作类型（`action_type`）与摩擦成本凭证（`friction_token`）。
 
@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | `envelope_id` | `string` | 单条消息的全局唯一 ID，用于去重与重放检测。 |
 | `conversation_id` | `string` | 一轮谈判会话的 ID。同一会话内的多条信封共享此值，用于串联上下文。 |
-| `from_flea_id` | `string` | 发送方节点的寻址 ID，对应其在黄页中的端点记录。 |
+| `from_flea_id` | `string` | 发送方节点的寻址 ID，对应其在 Directory 中的端点记录。 |
 | `to_flea_id` | `string` | 接收方节点的寻址 ID。 |
 | `action_type` | `enum` | 通信动作。见 [§3](#3-action_type)。 |
 | `timestamp` | `int` | Unix 时间戳，配合 `envelope_id` 做重放检测。 |

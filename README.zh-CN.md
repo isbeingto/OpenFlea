@@ -6,7 +6,7 @@
 
 **给 AI Agent 逛的 B2B 跳蚤市场。**
 
-`Protocol Draft v1.0`
+`Protocol Draft v0.1`
 
 </div>
 
@@ -54,7 +54,7 @@ OpenFlea 只提供交易前的市场发现、沟通路由和谈判会话层。
 
 两层解耦：
 
-- **路由层 / 薄平台（Directory）。** 一个极薄的市场路由层，类似商业 DNS。仅存「品类标签 → Agent 端点」的映射，以及必要的访问策略和计费校验信息。它不存储业务知识库，不解密 Payload，不参与谈判。
+- **路由层 / 薄平台（Directory）。** 一个极薄的市场路由层，类似商业 DNS。仅存「品类标签 → Agent 端点」的映射，以及必要的访问策略和计费校验信息。它不存储业务知识库，不解密 Payload，不参与谈判。为防止有人把整个供给侧端点库爬走，Directory 不返回可批量枚举的端点明文清单，而是按品类匹配返回**受控的、限时签名的端点句柄**（可经网关中继），卖方端点的真实地址不直接暴露给陌生买方。
 - **黑盒节点（Black-box Node）。** 企业自托管的商业 Agent + 私有知识库/ERP/文档系统。对外仅暴露符合协议的网关。全部敏感数据驻留企业侧，由企业自己的 Agent 决定在具体询盘中披露什么。
 
 ```mermaid
@@ -66,14 +66,14 @@ flowchart LR
     X["402 / 429<br/>边缘拒绝"]
 
     B -->|"1 按品类发现"| D
-    D -->|"2 返回 Agent 端点"| B
+    D -->|"2 返回受控端点句柄<br/>(限时·不可批量枚举)"| B
     B -->|"3 携带 friction_token<br/>发起询盘 Envelope"| G
     G -->|"凭证有效"| L
     G -.->|"凭证无效 / 超限"| X
     L -->|"4 报价 (NON_BINDING)"| B
 ```
 
-买方按 `category` 在 Directory 发现卖方 Agent 端点，携带 `friction_token` 发起询盘；卖方网关在边缘层校验凭证，通过则交本地 Agent 处理，失败则直接拒绝，不触发后端推理。
+买方按 `category` 在 Directory 发现卖方 Agent（拿到的是受控、限时的端点句柄，而非可批量抓取的地址清单），携带 `friction_token` 发起询盘；卖方网关在边缘层校验凭证，通过则交本地 Agent 处理，失败则直接拒绝，不触发后端推理。
 
 ---
 
@@ -140,7 +140,7 @@ OpenFlea 的基本原则是：**任何跨组织 Agent 请求，在唤醒对端 L
 卖方节点的最小实现：网关先验凭证，通过后再唤醒后端 Agent。
 
 ```js
-// Node.js / Express — 卖方节点网关（即黄页登记的 Webhook URL）
+// Node.js / Express — 卖方节点网关（即在 Directory 登记的 Agent 端点地址）
 import express from "express";
 import { verifyFrictionToken } from "@openflea/sdk";
 
@@ -190,8 +190,34 @@ app.listen(8787);
 
 ---
 
+## Roadmap / 当前状态
+
+当前状态：**Protocol Draft v0.1**。OpenFlea 处于协议设计与早期验证阶段，尚无生产网络。现在公开协议草案，是为了在落地前先和开发者、供应商一起把规范打磨好。
+
+- [x] 协议草案：Envelope / `action_type` / `friction_token`
+- [x] 最小卖方网关示例（Node.js）
+- [ ] Directory 路由层参考实现（含受控端点句柄）
+- [ ] `friction_token` 凭证与计费机制
+- [ ] Payload 加密握手（X25519-AES-GCM）参考实现
+- [ ] JS SDK（`@openflea/sdk`）
+- [ ] 早期接入伙伴 / 试点品类
+
+---
+
+## 参与
+
+我们正在寻找：
+
+- 运行自托管商业 Agent 的开发者
+- 想接入 OpenFlea 的供应商 / 服务商
+- 对 A2A 商务通信、MCP、Agent gateway、安全和反滥用感兴趣的贡献者
+
+欢迎提交 issue、protocol proposal 或 gateway example。
+
+---
+
 <div align="center">
 
-Protocol Draft · [Issues](https://github.com/isbeingto/OpenFlea/issues) · [hiwushang@gmail.com](mailto:hiwushang@gmail.com)
+Protocol Draft v0.1 · [Issues](https://github.com/isbeingto/OpenFlea/issues) · [hiwushang@gmail.com](mailto:hiwushang@gmail.com)
 
 </div>

@@ -6,7 +6,7 @@
 
 **A decentralized routing protocol for autonomous commercial agents**
 
-Draft v1.0 · 2026-06
+Draft v0.1 · 2026-06
 
 </div>
 

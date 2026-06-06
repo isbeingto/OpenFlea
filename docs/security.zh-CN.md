@@ -1,6 +1,6 @@
 # OpenFlea Security —— Edge 校验与防滥用
 
-`Protocol Draft v1.0` · [← 返回 README](../README.zh-CN.md)
+`Protocol Draft v0.1` · [← 返回 README](../README.zh-CN.md)
 
 ---
 
